@@ -1,0 +1,41 @@
+#!/usr/bin/env python3
+# the "mavica" script copies all the photos off a Mavica camera, elegantly
+#
+# version 0.1: shell script translated to python: mounts/unmounts a block device and copies pictures to the current directory
+# TODO:
+# - Prompt for the current date and format each of the JPGs with a new filename that's "2024-08-21_f1_MVC-009F.JPG"
+# - Take parameters, add a parameter for a middle-string (like "floppy1" or "f1")
+# - Draw certain things from the environment (like the block device, mountpoint, target dir, middle-string)
+# - Add standard JPG metadata into these files based on the current datetime
+
+import subprocess
+import glob
+import os
+import shutil
+import shlex
+
+drive = '/dev/sdc'
+mountpoint = '/mnt/tmp'
+dry_run = False
+
+def run(command: str, dry_run: bool = False):
+    '''run a string command through subprocess, echo'ing the command to be executed when dry_run = True'''
+    command_fragments = shlex.split(command)
+    if dry_run:
+        command_fragments.insert(0, 'echo')
+    return subprocess.run(command_fragments)
+
+def copy_files_from(source_dir: str, dest_dir: str, dry_run: bool = False):
+    '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
+    files = glob.iglob(os.path.join(source_dir, "*.JPG"))
+    for file in files:
+        if os.path.isfile(file):
+            if dry_run:
+                print(f'would copy {file} to {dest_dir}')
+            else:
+                shutil.copy2(file, dest_dir)
+
+# string interpolating into a root-level command because it's fun to enjoy life
+run(f'sudo mount {drive} {mountpoint}', dry_run)
+copy_files_from(mountpoint, '.', dry_run)
+run(f'sudo umount {mountpoint}', dry_run)
