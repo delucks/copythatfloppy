@@ -14,6 +14,7 @@ import os
 import shutil
 import shlex
 import argparse
+from contextlib import contextmanager
 
 def run(command: str, dry_run: bool = False):
     '''run a string command through subprocess, echo'ing the command to be executed when dry_run = True'''
@@ -32,16 +33,24 @@ def copy_files_from(source_dir: str, dest_dir: str, dry_run: bool = False):
             else:
                 shutil.copy2(file, dest_dir)
 
+@contextmanager
+def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
+    # string interpolating into a root-level command because it's fun to enjoy life
+    try:
+        run(f'sudo mount {drive} {mountpoint}', dry_run)
+        yield
+    finally:
+        run(f'sudo umount {mountpoint}', dry_run)
+
 def main():
     p = argparse.ArgumentParser('copy your crunchy JPGs from a Mavica floppy disk')
     p.add_argument('drive', default='/dev/sdc', help='path to the block device for the floppy drive')
+    p.add_argument('--destination', default='.', help='the directory where your JPGs should end up')
     p.add_argument('--mountpoint', default='/mnt/tmp', help='path to the mountpoint where the floppies should be mounted')
     p.add_argument('--dry-run', action='store_true', default=False, help='write what actions will be performed to stdout')
     args = p.parse_args()
-    # string interpolating into a root-level command because it's fun to enjoy life
-    run(f'sudo mount {args.drive} {args.mountpoint}', args.dry_run)
-    copy_files_from(args.mountpoint, '.', args.dry_run)
-    run(f'sudo umount {args.mountpoint}', args.dry_run)
+    with mounted_block_device(args.drive, args.mountpoint, args.dry_run):
+        copy_files_from(args.mountpoint, args.destination, args.dry_run)
 
 if __name__ == '__main__':
     main()
