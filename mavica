@@ -3,18 +3,21 @@
 #
 # version 0.2: filenames are now formatted to be unique from each other, with the date and floppy number
 # version 0.1: shell script translated to python: mounts/unmounts a block device and copies pictures to the current directory
+#
+# this source is formatted using `black -S -l 120`
+#
 # TODO:
 # - Draw certain things from the environment (like the block device, mountpoint, target dir, middle-string)
 # - Add standard JPG metadata into these files based on the current datetime
 
-import subprocess
+import argparse
 import glob
 import os
-import shutil
-import shlex
-import argparse
 import re
 import readline
+import shlex
+import shutil
+import subprocess
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -25,12 +28,14 @@ from datetime import datetime
 #   2024-08-21_f1_MVC-009F.JPG
 FLOPPY_NUMBER_PFX = 'floppy'
 
+
 def run(command: str, dry_run: bool = False):
     '''run a string command through subprocess, echo'ing the command to be executed when dry_run = True'''
     command_fragments = shlex.split(command)
     if dry_run:
         command_fragments.insert(0, 'echo')
     return subprocess.run(command_fragments)
+
 
 def prompt_for_date():
     default_date = '{:%Y-%m-%d}'.format(datetime.now())
@@ -51,6 +56,7 @@ def prompt_for_date():
             result = default_date
     return result
 
+
 def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run: bool = False):
     '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
     # prompt for the date of this floppy
@@ -69,6 +75,7 @@ def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run:
             else:
                 shutil.copy2(file, destination)
 
+
 @contextmanager
 def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
     # string interpolating into a root-level command because it's fun to enjoy life
@@ -78,16 +85,31 @@ def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
     finally:
         run(f'sudo umount {mountpoint}', dry_run)
 
+
 def main():
     p = argparse.ArgumentParser('copy your crunchy JPGs from a Mavica floppy disk')
     p.add_argument('drive', default='/dev/sdc', help='path to the block device for the floppy drive')
-    p.add_argument('--dry-run', action='store_true', default=False, help='write what actions will be performed to stdout')
+    p.add_argument(
+        '--dry-run', action='store_true', default=False, help='write what actions will be performed to stdout'
+    )
     p.add_argument('--destination', default='.', help='the directory where your JPGs should end up', metavar='PATH')
-    p.add_argument('--mountpoint', default='/mnt/tmp', help='path to the mountpoint where the floppies should be mounted', metavar='PATH')
-    p.add_argument('-n', '--floppyno', type=int, help='when copying multiple floppies, the number to store in the filenames of the resulting files', metavar='NUM')
+    p.add_argument(
+        '--mountpoint',
+        default='/mnt/tmp',
+        help='path to the mountpoint where the floppies should be mounted',
+        metavar='PATH',
+    )
+    p.add_argument(
+        '-n',
+        '--floppyno',
+        type=int,
+        help='when copying multiple floppies, the number to store in the filenames of the resulting files',
+        metavar='NUM',
+    )
     args = p.parse_args()
     with mounted_block_device(args.drive, args.mountpoint, args.dry_run):
         copy_files_from(args.mountpoint, args.destination, args.floppyno, args.dry_run)
+
 
 if __name__ == '__main__':
     main()
