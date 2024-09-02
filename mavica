@@ -7,7 +7,6 @@
 # this source is formatted using `black -S -l 120`
 #
 # TODO:
-# - Draw certain things from the environment (like the block device, mountpoint, target dir, middle-string)
 # - Add standard JPG metadata into these files based on the current datetime
 
 import argparse
@@ -37,6 +36,10 @@ def run(command: str, dry_run: bool = False):
     return subprocess.run(command_fragments)
 
 
+def valid_date(date: str):
+    return re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', date)
+
+
 def prompt_for_date():
     default_date = '{:%Y-%m-%d}'.format(datetime.now())
     result = ''
@@ -47,7 +50,7 @@ def prompt_for_date():
                 print('Using default...')
                 result = default_date
             else:
-                if re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', new_date):
+                if valid_date(new_date):
                     result = new_date
                 else:
                     print('Must be in the format YYYY-MM-DD or YYYY-DD-MM')
@@ -57,10 +60,8 @@ def prompt_for_date():
     return result
 
 
-def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run: bool = False):
+def copy_files_from(source_dir: str, dest_dir: str, date_string: str, floppyno: int = -1, dry_run: bool = False):
     '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
-    # prompt for the date of this floppy
-    date_string = prompt_for_date()
     files = glob.iglob(os.path.join(source_dir, "*.JPG"))
     for file in files:
         if os.path.isfile(file):
@@ -107,8 +108,24 @@ def main():
         metavar='NUM',
     )
     args = p.parse_args()
-    with mounted_block_device(args.drive, args.mountpoint, args.dry_run):
-        copy_files_from(args.mountpoint, args.destination, args.floppyno, args.dry_run)
+    # resolve necessary variables from configuration, args, or prompt
+    # environment variables take the highest precedence, then CLI arguments, then prompting the user
+    date_string = os.getenv('MVC_DATE', None)
+    if date_string is None:
+        date_string = prompt_for_date()
+    else:
+        if not valid_date(date_string):
+            raise Exception('MVC_DATE must be in the format YYYY-MM-DD or YYYY-DD-MM')
+    mountpoint = os.getenv('MVC_MOUNTPOINT', args.mountpoint)
+    if mountpoint == '/':
+        raise Exception('The mountpoint cannot be the root of your filesystem')
+    floppynum = os.getenv('MVC_FLOPPYNO', args.floppyno)
+    destination = os.getenv('MVC_DSTPATH', args.destination)
+    if not os.path.isdir(destination):
+        raise Exception('Destination path must exist!')
+    # Mount the floppy and start the copy process
+    with mounted_block_device(args.drive, mountpoint, args.dry_run):
+        copy_files_from(mountpoint, destination, date_string, floppynum, args.dry_run)
 
 
 if __name__ == '__main__':
