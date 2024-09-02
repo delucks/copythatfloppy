@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # the "mavica" script copies all the photos off a Mavica camera, elegantly
 #
+# version 0.2: filenames are now formatted to be unique from each other, with the date and floppy number
 # version 0.1: shell script translated to python: mounts/unmounts a block device and copies pictures to the current directory
 # TODO:
-# - Prompt for the current date and format each of the JPGs with a new filename that's "2024-08-21_f1_MVC-009F.JPG"
 # - Draw certain things from the environment (like the block device, mountpoint, target dir, middle-string)
 # - Add standard JPG metadata into these files based on the current datetime
 
@@ -13,6 +13,8 @@ import os
 import shutil
 import shlex
 import argparse
+import re
+import readline
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -30,8 +32,29 @@ def run(command: str, dry_run: bool = False):
         command_fragments.insert(0, 'echo')
     return subprocess.run(command_fragments)
 
+def prompt_for_date():
+    default_date = '{:%Y-%m-%d}'.format(datetime.now())
+    result = ''
+    while result == '':
+        try:
+            new_date = input(f'What date were these pictures taken? Default is {default_date}: ')
+            if new_date.strip() == '':
+                print('Using default...')
+                result = default_date
+            else:
+                if re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', new_date):
+                    result = new_date
+                else:
+                    print('Must be in the format YYYY-MM-DD or YYYY-DD-MM')
+        except KeyboardInterrupt:
+            print('\nUsing default...')
+            result = default_date
+    return result
+
 def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run: bool = False):
     '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
+    # prompt for the date of this floppy
+    date_string = prompt_for_date()
     files = glob.iglob(os.path.join(source_dir, "*.JPG"))
     for file in files:
         if os.path.isfile(file):
@@ -39,7 +62,7 @@ def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run:
             floppy_spec = ''
             if floppyno is not None and floppyno > 0:
                 floppy_spec = f'{FLOPPY_NUMBER_PFX}{floppyno}_'
-            dest_file = '{:%Y-%m-%d}_{}{}'.format(datetime.now(), floppy_spec, os.path.basename(file))
+            dest_file = '{}_{}{}'.format(date_string, floppy_spec, os.path.basename(file))
             destination = os.path.join(dest_dir, dest_file)
             if dry_run:
                 print(f'would copy {file} to {destination}')
