@@ -4,7 +4,6 @@
 # version 0.1: shell script translated to python: mounts/unmounts a block device and copies pictures to the current directory
 # TODO:
 # - Prompt for the current date and format each of the JPGs with a new filename that's "2024-08-21_f1_MVC-009F.JPG"
-# - Take parameters, add a parameter for a middle-string (like "floppy1" or "f1")
 # - Draw certain things from the environment (like the block device, mountpoint, target dir, middle-string)
 # - Add standard JPG metadata into these files based on the current datetime
 
@@ -15,6 +14,14 @@ import shutil
 import shlex
 import argparse
 from contextlib import contextmanager
+from datetime import datetime
+
+### CONFIGURATION ###
+# Prefix of the filename component including the floppy number. By default, filenames look like this:
+#   2024-08-21_floppy1_MVC-009F.JPG
+# Changing this to "f" would produce filenames like:
+#   2024-08-21_f1_MVC-009F.JPG
+FLOPPY_NUMBER_PFX = 'floppy'
 
 def run(command: str, dry_run: bool = False):
     '''run a string command through subprocess, echo'ing the command to be executed when dry_run = True'''
@@ -23,15 +30,21 @@ def run(command: str, dry_run: bool = False):
         command_fragments.insert(0, 'echo')
     return subprocess.run(command_fragments)
 
-def copy_files_from(source_dir: str, dest_dir: str, dry_run: bool = False):
+def copy_files_from(source_dir: str, dest_dir: str, floppyno: int = -1, dry_run: bool = False):
     '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
     files = glob.iglob(os.path.join(source_dir, "*.JPG"))
     for file in files:
         if os.path.isfile(file):
+            # Assemble destination filename
+            floppy_spec = ''
+            if floppyno is not None and floppyno > 0:
+                floppy_spec = f'{FLOPPY_NUMBER_PFX}{floppyno}_'
+            dest_file = '{:%Y-%m-%d}_{}{}'.format(datetime.now(), floppy_spec, os.path.basename(file))
+            destination = os.path.join(dest_dir, dest_file)
             if dry_run:
-                print(f'would copy {file} to {dest_dir}')
+                print(f'would copy {file} to {destination}')
             else:
-                shutil.copy2(file, dest_dir)
+                shutil.copy2(file, destination)
 
 @contextmanager
 def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
@@ -45,12 +58,13 @@ def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
 def main():
     p = argparse.ArgumentParser('copy your crunchy JPGs from a Mavica floppy disk')
     p.add_argument('drive', default='/dev/sdc', help='path to the block device for the floppy drive')
-    p.add_argument('--destination', default='.', help='the directory where your JPGs should end up')
-    p.add_argument('--mountpoint', default='/mnt/tmp', help='path to the mountpoint where the floppies should be mounted')
     p.add_argument('--dry-run', action='store_true', default=False, help='write what actions will be performed to stdout')
+    p.add_argument('--destination', default='.', help='the directory where your JPGs should end up', metavar='PATH')
+    p.add_argument('--mountpoint', default='/mnt/tmp', help='path to the mountpoint where the floppies should be mounted', metavar='PATH')
+    p.add_argument('-n', '--floppyno', type=int, help='when copying multiple floppies, the number to store in the filenames of the resulting files', metavar='NUM')
     args = p.parse_args()
     with mounted_block_device(args.drive, args.mountpoint, args.dry_run):
-        copy_files_from(args.mountpoint, args.destination, args.dry_run)
+        copy_files_from(args.mountpoint, args.destination, args.floppyno, args.dry_run)
 
 if __name__ == '__main__':
     main()
