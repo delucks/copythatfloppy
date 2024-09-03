@@ -8,6 +8,9 @@
 #
 # TODO:
 # - Add standard JPG metadata into these files based on the current datetime
+# - Looks like the file modification date/time on the files coming off the floppy is accurate to the internal clock
+#   each file has the time of the camera's internal clock as the write time, without a timezone written (my computer assumes it's UTC as a result)
+#   we could have the timezone in configuration so we can write back the metadata with the timezone set
 
 import argparse
 import glob
