@@ -1,8 +1,10 @@
 # mavica
 
-aka `copythatfloppy`
+The `mavica` script copies all photos off a Mavica camera's floppy disk, elegantly.
 
-This is a translation of the bash script that I use to copy my Mavica FD-7 pictures off the floppy disks to my Linux computer using an USB floppy disk reader.
+Do you have a Sony Mavica camera and a Linux computer you use to copy the pictures off its floppy disks? This script automates that process! It's a pure python, no dependency script that copies all the images from a Mavica floppy disk, formatting their filenames and keeping track of the disk number.
+
+So far it's only been tested with a Mavica FD-7; I am eager for more testers with other models! Please give the script a try and open an issue or PR with your experience.
 
 ## Usage
 
@@ -14,7 +16,7 @@ In the simplest form, pass the block device that represents your floppy disk dri
 
 You can override the destination directory using `--destination /path/to/dir`, which can be relative or absolute.
 
-By default, the script asks you what date the pictures were taken on. You can hit Enter or Ctrl+C at that prompt to accept the default of today's date, or enter another date in YYYY-MM-DD format.
+By default, the script assumes the pictures were taken on the present day. To override this assumption, use `--date 2024-09-02` or the environment variable `MVC_DATE`.
 
 ## Environment Variables
 
@@ -22,9 +24,9 @@ Most of the options for this program can be set in environment variables, so you
 
 | Variable | Overrides | Description |
 | -------- | --------- | ----------- |
-| `MVC_DATE` | Date prompt | The date these pictures were taken in YYYY-MM-DD format |
+| `MVC_DATE` | `--date` | The date these pictures were taken in YYYY-MM-DD format |
 | `MVC_MOUNTPOINT` | `--mountpoint` | Where the floppy should be temporarily mounted during the copy operation |
 | `MVC_DSTPATH` | `--destination` | Where the images from this floppy should end up |
 | `MVC_FLOPPYNO` | `--floppyno` | The current number of this floppy in a batch |
 
-You can use these by either exporting them into the environment, or running them inline like `MVC_DATE=2024-09-02 mavica -n 5`. Setting `MVC_DATE` will skip the prompt for what date the images were taken on, so you can use these environment variables to run the script without any interactivity.
+You can use these by either exporting them into the environment, or running them inline like `MVC_DATE=2024-09-02 mavica -n 5`.
