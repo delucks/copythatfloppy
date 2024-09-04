@@ -7,12 +7,13 @@
 # this source is formatted using `black -S -l 120`
 #
 # TODO:
-# - Add standard JPG metadata into these files based on the current datetime
-#   exiftool -Make=Sony 2024-08-16_floppy1_MVC-001F.JPG
-#   exiftool -CameraModel=FD-7 2024-08-16_floppy1_MVC-001F.JPG
+# - Add date detection based on the files' modification dates. Configure or assume a timezone, format each filename according to this date
 # - Looks like the file modification date/time on the files coming off the floppy is accurate to the internal clock
 #   each file has the time of the camera's internal clock as the write time, without a timezone written (my computer assumes it's UTC as a result)
 #   we could have the timezone in configuration so we can write back the metadata with the timezone set
+# - Add standard JPG metadata into these files, including timestamps based on the date detection
+#   exiftool -Make=Sony
+#   exiftool -CameraModel=FD-7
 
 import sys
 
@@ -40,7 +41,7 @@ from typing import Generator
 FLOPPY_NUMBER_PFX = 'floppy'
 
 
-def errexit(*args, **kwargs):
+def errexit(*args, **kwargs) -> None:
     print(*args, file=sys.stderr, **kwargs)
     sys.exit(1)
 
