@@ -30,6 +30,7 @@ import shutil
 import subprocess
 from contextlib import contextmanager
 from datetime import datetime
+from typing import Generator
 
 ### CONFIGURATION ###
 # Prefix of the filename component including the floppy number. By default, filenames look like this:
@@ -39,7 +40,12 @@ from datetime import datetime
 FLOPPY_NUMBER_PFX = 'floppy'
 
 
-def run(command: str, dry_run: bool = False):
+def errexit(*args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+    sys.exit(1)
+
+
+def run(command: str, dry_run: bool = False) -> subprocess.CompletedProcess:
     '''run a string command through subprocess, echo'ing the command to be executed when dry_run = True'''
     command_fragments = shlex.split(command)
     if dry_run:
@@ -47,11 +53,11 @@ def run(command: str, dry_run: bool = False):
     return subprocess.run(command_fragments)
 
 
-def valid_date(date: str):
+def valid_date(date: str) -> bool:
     return re.match('[0-9]{4}-[0-9]{2}-[0-9]{2}', date)
 
 
-def prompt_for_date():
+def prompt_for_date() -> str:
     default_date = '{:%Y-%m-%d}'.format(datetime.now())
     result = ''
     while result == '':
@@ -64,14 +70,16 @@ def prompt_for_date():
                 if valid_date(new_date):
                     result = new_date
                 else:
-                    print('Must be in the format YYYY-MM-DD or YYYY-DD-MM')
+                    print('Must be in the format YYYY-MM-DD')
         except KeyboardInterrupt:
             print('\nUsing default...')
             result = default_date
     return result
 
 
-def copy_files_from(source_dir: str, dest_dir: str, date_string: str, floppyno: int = -1, dry_run: bool = False):
+def copy_files_from(
+    source_dir: str, dest_dir: str, date_string: str, floppyno: int = -1, dry_run: bool = False
+) -> None:
     '''copy all the files from source_dir to dest_dir, or echo the files to be copied when dry_run = True'''
     files = glob.iglob(os.path.join(source_dir, "*.JPG"))
     for file in files:
@@ -89,7 +97,7 @@ def copy_files_from(source_dir: str, dest_dir: str, date_string: str, floppyno: 
 
 
 @contextmanager
-def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
+def mounted_block_device(drive: str, mountpoint: str, dry_run: bool) -> Generator[None, None, None]:
     # string interpolating into a root-level command because it's fun to enjoy life
     try:
         run(f'sudo mount {drive} {mountpoint}', dry_run)
@@ -98,8 +106,8 @@ def mounted_block_device(drive: str, mountpoint: str, dry_run: bool):
         run(f'sudo umount {mountpoint}', dry_run)
 
 
-def main():
-    p = argparse.ArgumentParser('copy your crunchy JPGs from a Mavica floppy disk')
+if __name__ == '__main__':
+    p = argparse.ArgumentParser('mavica')
     p.add_argument('drive', default='/dev/sdc', help='path to the block device for the floppy drive')
     p.add_argument(
         '--dry-run', action='store_true', default=False, help='write what actions will be performed to stdout'
@@ -112,6 +120,12 @@ def main():
         metavar='PATH',
     )
     p.add_argument(
+        '-d',
+        '--date',
+        default='{:%Y-%m-%d}'.format(datetime.now()),
+        help='the date these images were taken in YYYY-MM-DD format',
+    )
+    p.add_argument(
         '-n',
         '--floppyno',
         type=int,
@@ -119,25 +133,20 @@ def main():
         metavar='NUM',
     )
     args = p.parse_args()
+
     # resolve necessary variables from configuration, args, or prompt
     # environment variables take the highest precedence, then CLI arguments, then prompting the user
-    date_string = os.getenv('MVC_DATE', None)
-    if date_string is None:
-        date_string = prompt_for_date()
-    else:
-        if not valid_date(date_string):
-            raise Exception('MVC_DATE must be in the format YYYY-MM-DD or YYYY-DD-MM')
+    date_string = os.getenv('MVC_DATE', args.date)
+    if not valid_date(date_string):
+        errexit('Date must be in the format YYYY-MM-DD')
     mountpoint = os.getenv('MVC_MOUNTPOINT', args.mountpoint)
     if mountpoint == '/':
-        raise Exception('The mountpoint cannot be the root of your filesystem')
+        errexit('The mountpoint cannot be the root of your filesystem')
     floppynum = os.getenv('MVC_FLOPPYNO', args.floppyno)
     destination = os.getenv('MVC_DSTPATH', args.destination)
     if not os.path.isdir(destination):
-        raise Exception('Destination path must exist!')
+        errexit('Destination path must exist!')
+
     # Mount the floppy and start the copy process
     with mounted_block_device(args.drive, mountpoint, args.dry_run):
         copy_files_from(mountpoint, destination, date_string, floppynum, args.dry_run)
-
-
-if __name__ == '__main__':
-    main()
