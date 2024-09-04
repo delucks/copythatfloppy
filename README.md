@@ -24,7 +24,13 @@ If you're ripping multiple floppies at once, pass the `-n` or `--floppyno` argum
 
 You can set where the pictures should be copied to using `--destination /path/to/dir`, which can be relative or absolute.
 
-By default, the script assumes the pictures were taken on the present day. To override this assumption, use `--date 2024-09-02` or the environment variable `MVC_DATE` (see below).
+By default, the script assumes the pictures were taken on the present day. To override this assumption, use `--date 2024-09-02` or the environment variable `MVC_DATE` (see below). Here's a more involved example:
+
+```
+mavica -n 5 --date 2024-07-17 --destination Pictures/mavica/Architecture/ /dev/sdc
+```
+
+This copies the fifth floppy of a series (`-n`) to the "Architecture" directory at the path above (`--destination`). The photos were taken on July 17th 2024 (`--date`).
 
 ## Environment Variables
 
@@ -37,4 +43,8 @@ Most of the options for this program can be set in environment variables, so you
 | `MVC_DSTPATH` | `--destination` | Where the images from this floppy should end up |
 | `MVC_FLOPPYNO` | `--floppyno` | The current number of this floppy in a batch |
 
-You can use these by either exporting them into the environment, or running them inline like `MVC_DATE=2024-09-02 mavica -n 5`.
+You can use these by either exporting them into the environment, or running them inline. The above example, reworked to use environment variables, would look like this:
+
+```
+MVC_FLOPPYNO=5 MVC_DATE=2024-07-17 MVC_DSTPATH=Pictures/mavica/Architecture/ mavica /dev/sdc
+```
