@@ -1,1 +1,4 @@
 testdir/
+venv/
+*.swp
+*.swo
